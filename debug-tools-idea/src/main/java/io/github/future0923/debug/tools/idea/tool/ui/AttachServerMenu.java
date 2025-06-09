@@ -19,10 +19,11 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.JBPopupMenu;
 import com.intellij.ui.components.JBRadioButton;
 import com.intellij.ui.components.JBTextArea;
-import io.github.future0923.debug.tools.base.utils.DebugToolsStringUtils;
+import io.github.future0923.debug.tools.base.hutool.core.util.StrUtil;
 import io.github.future0923.debug.tools.idea.model.ServerDisplayValue;
 import io.github.future0923.debug.tools.idea.setting.DebugToolsSettingState;
 import io.github.future0923.debug.tools.idea.utils.DebugToolsAttachUtils;
+import io.github.future0923.debug.tools.idea.utils.DebugToolsNotifierUtil;
 
 import javax.swing.*;
 import java.awt.*;
@@ -62,10 +63,12 @@ public class AttachServerMenu extends JBPopupMenu {
             ServerDisplayValue serverDisplayValue = ServerDisplayValue.of(button.getText());
             if (serverDisplayValue != null) {
                 DebugToolsSettingState settingState = DebugToolsSettingState.getInstance(project);
-                String agentPath = settingState.loadAgentPath();
-                if (DebugToolsStringUtils.isNotBlank(agentPath)) {
-                    DebugToolsAttachUtils.attachLocal(project, serverDisplayValue.getKey(), serverDisplayValue.getValue(), agentPath);
+                String agentPath = settingState.getAgentPath();
+                if (StrUtil.isBlank(agentPath)) {
+                    DebugToolsNotifierUtil.notifyError(project, "load agent path error");
+                    return;
                 }
+                DebugToolsAttachUtils.attachLocal(project, serverDisplayValue.getKey(), serverDisplayValue.getValue(), agentPath);
                 settingState.setLocal(true);
             }
             this.setVisible(false);

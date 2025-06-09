@@ -80,11 +80,6 @@ public class AgentArgs {
     private String propertiesFilePath;
 
     /**
-     * 本地是否开启自动附着. true | false
-     */
-    private String autoAttach;
-
-    /**
      * 将agent上的string参数转为AgentArgs对象
      *
      * @param agentArgs key1=value1,key2=value2

@@ -22,21 +22,15 @@ import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
-import io.github.future0923.debug.tools.base.constants.ProjectConstants;
-import io.github.future0923.debug.tools.base.hutool.core.io.FileUtil;
-import io.github.future0923.debug.tools.base.hutool.core.thread.ThreadUtil;
+import io.github.future0923.debug.tools.base.hutool.core.util.StrUtil;
 import io.github.future0923.debug.tools.common.protocal.http.AllClassLoaderRes;
 import io.github.future0923.debug.tools.idea.client.http.HttpClientUtils;
 import io.github.future0923.debug.tools.idea.setting.DebugToolsSettingState;
 import io.github.future0923.debug.tools.idea.utils.DebugToolsAttachUtils;
+import io.github.future0923.debug.tools.idea.utils.DebugToolsNotifierUtil;
 import io.github.future0923.debug.tools.idea.utils.StateUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
-
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 
 /**
  * @author future0923
@@ -59,52 +53,34 @@ public class DebugToolsExecutionListener implements ExecutionListener {
         if (handler instanceof KillableColoredProcessHandler.Silent) {
             String pid = String.valueOf(((KillableColoredProcessHandler.Silent) handler).getProcess().pid());
             String agentPath = settingState.getAgentPath();
-            ThreadUtil.createThreadFactory("Auto-Attach").newThread(() -> {
-                String file = FileUtil.getUserHomePath() + "/" + ProjectConstants.AUTO_ATTACH_FLAG_FILE;
-                FileUtil.touch(file);
-                try (FileChannel channel = FileChannel.open(Paths.get(file), StandardOpenOption.READ)) {
-                    int index = 0;
-                    for (; ; ) {
-                        if (index++ > 30) {
-                            break;
-                        }
-                        ThreadUtil.sleep(1000);
-                        MappedByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, 1);
-                        byte[] dataBytes = new byte[buffer.limit()];
-                        buffer.get(dataBytes);
-                        String data = new String(dataBytes);
-                        if ("1".equals(data)) {
-                            DebugToolsAttachUtils.attachLocal(
-                                    project,
-                                    pid,
-                                    ((ApplicationConfiguration) env.getRunProfile()).getMainClassName(),
-                                    agentPath,
-                                    () -> {
-                                        try {
-                                            AllClassLoaderRes allClassLoaderRes = HttpClientUtils.allClassLoader(project, false);
-                                            if (allClassLoaderRes != null) {
-                                                AllClassLoaderRes.Item defaultClassLoader = null;
-                                                for (AllClassLoaderRes.Item item : allClassLoaderRes.getItemList()) {
-                                                    if (item.getIdentity().equals(allClassLoaderRes.getDefaultIdentity())) {
-                                                        defaultClassLoader = item;
-                                                    }
-                                                }
-                                                if (defaultClassLoader != null) {
-                                                    StateUtils.setProjectDefaultClassLoader(project, defaultClassLoader);
-                                                }
-                                            }
-                                        } catch (Exception e) {
-                                            log.error("auto attach select default classloader error", e);
-                                        }
+            if (StrUtil.isBlank(agentPath)) {
+                DebugToolsNotifierUtil.notifyError(project, "load agent path error");
+                return;
+            }
+            DebugToolsAttachUtils.attachLocal(
+                    project,
+                    pid,
+                    ((ApplicationConfiguration) env.getRunProfile()).getMainClassName(),
+                    agentPath,
+                    () -> {
+                        try {
+                            AllClassLoaderRes allClassLoaderRes = HttpClientUtils.allClassLoader(project, false);
+                            if (allClassLoaderRes != null) {
+                                AllClassLoaderRes.Item defaultClassLoader = null;
+                                for (AllClassLoaderRes.Item item : allClassLoaderRes.getItemList()) {
+                                    if (item.getIdentity().equals(allClassLoaderRes.getDefaultIdentity())) {
+                                        defaultClassLoader = item;
                                     }
-                            );
-                            break;
+                                }
+                                if (defaultClassLoader != null) {
+                                    StateUtils.setProjectDefaultClassLoader(project, defaultClassLoader);
+                                }
+                            }
+                        } catch (Exception e) {
+                            log.error("auto attach select default classloader error", e);
                         }
                     }
-                } catch (Exception e) {
-                    log.error("write {} error", e, file);
-                }
-            }).start();
+            );
         }
     }
 }

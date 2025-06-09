@@ -17,6 +17,9 @@ package io.github.future0923.debug.tools.idea.startup;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.ProjectActivity;
+import io.github.future0923.debug.tools.base.hutool.core.util.StrUtil;
+import io.github.future0923.debug.tools.idea.setting.DebugToolsSettingState;
+import io.github.future0923.debug.tools.idea.utils.DebugToolsNotifierUtil;
 import io.github.future0923.debug.tools.idea.utils.StateUtils;
 import kotlin.Unit;
 import kotlin.coroutines.Continuation;
@@ -33,6 +36,11 @@ public class HotSwapStartupActivity implements ProjectActivity {
     @Override
     public @Nullable Object execute(@NotNull Project project, @NotNull Continuation<? super Unit> continuation) {
         StateUtils.setProjectOpenTime(project);
+        DebugToolsSettingState instance = DebugToolsSettingState.getInstance(project);
+        String loadAgentPath = instance.loadAgentPath(project);
+        if (StrUtil.isBlank(loadAgentPath)) {
+            DebugToolsNotifierUtil.notifyError(project, "load agent path error");
+        }
         return null;
     }
 }
