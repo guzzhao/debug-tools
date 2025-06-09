@@ -79,6 +79,7 @@ public class DebugToolsExecutionListener implements ExecutionListener {
                         } catch (Exception e) {
                             log.error("auto attach select default classloader error", e);
                         }
+                        settingState.setLocal(true);
                     }
             );
         }
